@@ -6,6 +6,49 @@ Exercise
 import redis
 import uuid
 from typing import Union, Callable, Optional, List
+from functools import wraps
+
+
+def count_calls(method: Callable) -> Callable:
+    """
+    Count calls decorator
+    """
+
+    key = method.__qualname__
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """
+        Wrapper function
+        """
+        self._redis.incr(key)
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+def call_history(method: Callable) -> Callable:
+    """
+    Call history decorator
+    """
+    key = method.__qualname__
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """
+        Wrapper function
+        """
+        self._redis.rpush(key, str(args))
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+
+def decode_utf8(data: bytes) -> str:
+    """
+    Decode utf-8
+    """
+    return data.decode('utf-8')
 
 
 class Cache:
@@ -20,6 +63,8 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @count_calls
+    @call_history
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
         Store data in redis
