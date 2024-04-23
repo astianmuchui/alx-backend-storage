@@ -92,3 +92,18 @@ class Cache:
         if fn:
             return fn(data)
         return data
+
+    def replay(self):
+        """
+        Replay history
+        """
+        methods = self._redis.keys("*")
+        for key in methods:
+            method = key.decode('utf-8')
+            if method in ["store", "get"]:
+                self._redis.incr(method)
+            key = f"Cache.{method}"
+            history = self._redis.lrange(key, 0, -1)
+            method = getattr(Cache, method)
+            for args in history:
+                self.get(decode_utf8(args), method)
